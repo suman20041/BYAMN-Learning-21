@@ -17,14 +17,14 @@
     <link rel="stylesheet" href="assets/css/styles.css">
 
     <!-- Firebase SDK - Using compat versions without type="module" -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
     <!-- Firebase configuration -->
-    <script type="module" src="assets/js/firebase.js"></script>
+    <script src="assets/js/firebase.js"></script>
 </head>
 <body class="min-h-screen bg-gray-50">
     <!-- Header -->
@@ -54,19 +54,9 @@
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div data-aos="zoom-in" class="mb-8">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">My Courses</h1>
-                    <p class="text-gray-600 mt-2">Continue learning and track your progress</p>
-                </div>
-                <button onclick="printAllCoursesProgress()" class="px-4 py-2 rounded-md bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium transition duration-300 inline-flex items-center self-start sm:self-auto">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                    </svg>
-                    Print All Progress
-                </button>
-            </div>
+    <div data-aos="zoom-in" class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">My Courses</h1>
+            <p class="text-gray-600 mt-2">Continue learning and track your progress</p>
         </div>
 
         <!-- Courses Grid -->

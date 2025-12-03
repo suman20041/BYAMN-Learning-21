@@ -1503,6 +1503,7 @@ body.theme-transition * {
   font-weight: 500;
   color: var(--text-body);
 }
+
 /* Footer Styles */
 .footer-links h3 {
   font-weight: 700;
@@ -1532,15 +1533,6 @@ body.theme-transition * {
   color: var(--color-white);
 }
 
-/* Social Icons */
-.footer-social {
-  display: flex;
-  justify-content: center; /* center horizontally */
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
 .footer-social a {
   display: inline-flex;
   align-items: center;
@@ -1551,6 +1543,7 @@ body.theme-transition * {
   background-color: var(--neutral-800);
   color: var(--neutral-400);
   transition: all var(--transition-fast) ease;
+  margin-right: 0.5rem;
 }
 
 .footer-social a:hover {
@@ -1559,51 +1552,14 @@ body.theme-transition * {
   transform: translateY(-2px);
 }
 
-/* --- NEW FIXES FOR CENTERING COPYRIGHT + LINKS + ICONS --- */
-
-/* Footer bottom wrapper (everything centered) */
-.footer-bottom {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding-top: 2rem;
-  margin-top: 2rem;
-  border-top: 1px solid var(--neutral-800);
-  gap: 1rem;
-}
-
-/* Centered copyright */
 .footer-copyright {
   color: var(--neutral-500);
   font-size: 0.875rem;
   line-height: 1.25rem;
-  margin-bottom: 0.5rem;
-  text-align: center;
+  border-top: 1px solid var(--neutral-800);
+  padding-top: 2rem;
+  margin-top: 2rem;
 }
-
-/* Small footer navigation links below copyright */
-.footer-small-nav {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1.25rem;
-}
-
-.footer-small-nav a {
-  color: var(--neutral-400);
-  text-decoration: none;
-  transition: color 0.2s ease;
-  font-size: 0.875rem;
-}
-
-.footer-small-nav a:hover {
-  color: var(--color-white);
-}
-
-
-
 
 /* Modern Form Styles */
 .form-container {
@@ -4084,309 +4040,4 @@ body.theme-transition * {
 
 .bounce {
     animation: bounce 1s ease infinite;
-}
-
-/* Learning Path Visualization Styles */
-
-.learning-path-container {
-    animation: fadeIn 0.5s ease-out;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.course-node {
-    transition: all 0.3s ease;
-    position: relative;
-}
-
-.course-node:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.course-node::before {
-    content: '';
-    position: absolute;
-    left: -24px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: #e5e7eb;
-}
-
-.course-node.completed::before {
-    background: #10b981;
-}
-
-.course-node.in-progress::before {
-    background: #3b82f6;
-}
-
-.recommendation-card {
-    transition: all 0.3s ease;
-}
-
-.recommendation-card:hover {
-    transform: translateY(-2px);
-    border-color: #6366f1;
-}
-
-.recommendation-card .enroll-btn {
-    transition: all 0.2s ease;
-}
-
-.recommendation-card .enroll-btn:hover {
-    transform: scale(1.05);
-}
-
-.line-clamp-1 {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.loading-spinner {
-    width: 2rem;
-    height: 2rem;
-    border: 3px solid rgba(99, 102, 241, 0.2);
-    border-top: 3px solid #6366f1;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .learning-path-container .grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .course-node::before {
-        left: -20px;
-        width: 8px;
-        height: 8px;
-    }
-}
-
-/* Add these styles to the end of styles.css */
-
-/* Print-specific styles */
-@media print {
-    /* Hide navigation and unnecessary elements */
-    header, 
-    footer, 
-    .user-actions-desktop,
-    .user-actions-mobile,
-    .mobile-menu-button,
-    #mobile-menu,
-    nav:not(.print-nav),
-    .theme-toggle,
-    .btn:not(.print-btn),
-    .video-player,
-    .video-container,
-    .search-bar,
-    .category-filters,
-    #sort-options,
-    .hero-section,
-    .feature-cards,
-    .stats-cards,
-    .social-sharing,
-    .newsletter-section {
-        display: none !important;
-    }
-    
-    /* Reset body for printing */
-    body {
-        background: white !important;
-        color: black !important;
-        font-size: 12pt !important;
-        line-height: 1.5 !important;
-        margin: 0 !important;
-        padding: 20px !important;
-    }
-    
-    /* Print container */
-    .print-container {
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 auto !important;
-        padding: 0 !important;
-    }
-    
-    /* Headings */
-    h1, h2, h3, h4 {
-        color: black !important;
-        page-break-after: avoid !important;
-    }
-    
-    h1 {
-        font-size: 24pt !important;
-        margin-bottom: 20px !important;
-    }
-    
-    h2 {
-        font-size: 18pt !important;
-        margin: 15px 0 10px 0 !important;
-    }
-    
-    h3 {
-        font-size: 16pt !important;
-        margin: 12px 0 8px 0 !important;
-    }
-    
-    /* Links */
-    a {
-        color: #0000EE !important;
-        text-decoration: underline !important;
-    }
-    
-    /* Show URLs after links */
-    a[href^="http"]:after {
-        content: " (" attr(href) ")";
-        font-size: 10pt;
-        color: #666;
-    }
-    
-    /* Lists */
-    ul, ol {
-        margin: 10px 0 !important;
-        padding-left: 30px !important;
-    }
-    
-    li {
-        margin: 5px 0 !important;
-        page-break-inside: avoid !important;
-    }
-    
-    /* Tables */
-    table {
-        width: 100% !important;
-        border-collapse: collapse !important;
-        margin: 15px 0 !important;
-        page-break-inside: avoid !important;
-    }
-    
-    th, td {
-        border: 1px solid #000 !important;
-        padding: 8px !important;
-        text-align: left !important;
-    }
-    
-    th {
-        background-color: #f2f2f2 !important;
-        font-weight: bold !important;
-    }
-    
-    /* Page breaks */
-    .page-break {
-        page-break-before: always !important;
-    }
-    
-    .avoid-break {
-        page-break-inside: avoid !important;
-    }
-    
-    /* Print header and footer */
-    .print-header {
-        text-align: center;
-        border-bottom: 2px solid #000;
-        padding-bottom: 15px;
-        margin-bottom: 25px;
-    }
-    
-    .print-footer {
-        text-align: center;
-        border-top: 1px solid #000;
-        padding-top: 10px;
-        margin-top: 20px;
-        font-size: 10pt;
-        color: #666;
-    }
-    
-    /* Progress bars for print */
-    .progress-bar-print {
-        height: 20px;
-        background-color: #f0f0f0;
-        border: 1px solid #000;
-        border-radius: 3px;
-        overflow: hidden;
-        margin: 10px 0;
-    }
-    
-    .progress-fill-print {
-        height: 100%;
-        background-color: #4f46e5;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-        font-weight: bold;
-        font-size: 10pt;
-    }
-    
-    /* Certificate preview for print */
-    .certificate-preview-print {
-        border: 2px solid #000;
-        padding: 20px;
-        margin: 20px 0;
-        text-align: center;
-    }
-    
-    /* Notes sections */
-    .lesson-notes {
-        border: 1px solid #ddd;
-        padding: 15px;
-        margin: 15px 0;
-        background-color: #f9f9f9;
-        page-break-inside: avoid;
-    }
-    
-    .notes-timestamp {
-        font-size: 10pt;
-        color: #666;
-        margin-bottom: 10px;
-    }
-}
-
-/* Screen-only styles for print buttons */
-@media screen {
-    .print-btn {
-        display: inline-flex;
-        align-items: center;
-        padding: 8px 16px;
-        margin: 5px;
-    }
-    
-    .print-btn:hover {
-        background-color: #f0f0f0;
-    }
-    
-    .print-options {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        padding: 10px;
-    }
 }
