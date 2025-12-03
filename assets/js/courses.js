@@ -11,6 +11,7 @@ let durationFilter = 'all'; // all, short, medium, long
 let instructorFilter = 'all'; // all, specific instructors
 let bookmarkedCourses = new Set(); // Store bookmarked course IDs
 let searchDebounceTimer;
+let userCompletedCourses = new Set(); // Store user's completed course IDs
 
 // Intersection Observer for lazy loading images
 const imageObserver = new IntersectionObserver((entries, observer) => {
@@ -135,6 +136,144 @@ async function loadUserBookmarks(userId) {
     } catch (error) {
         console.error('Error loading user bookmarks:', error);
     }
+}
+
+// Load user completed courses
+async function loadUserCompletedCourses(userId) {
+    try {
+        if (!userId) return;
+        
+        // Get user enrollments
+        const enrollments = await firebaseServices.getUserEnrollments(userId);
+        
+        // Get user analytics for completed courses
+        const analytics = await firebaseServices.getUserAnalytics(userId);
+        
+        if (analytics && analytics.completedCourses) {
+            Object.keys(analytics.completedCourses).forEach(courseId => {
+                userCompletedCourses.add(courseId);
+            });
+        }
+        
+        // Also check enrollments for completed courses
+        enrollments.forEach(enrollment => {
+            if (enrollment.progress === 100) {
+                userCompletedCourses.add(enrollment.courseId);
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error loading user completed courses:', error);
+    }
+}
+
+// NEW: Get prerequisites for a course
+async function getCoursePrerequisites(courseId) {
+    try {
+        const courseRef = ref(firebaseServices.rtdb, `courses/${courseId}/prerequisites`);
+        const snapshot = await get(courseRef);
+        
+        if (snapshot.exists()) {
+            const prerequisites = snapshot.val();
+            
+            // If prerequisites is an array, return it
+            if (Array.isArray(prerequisites)) {
+                return prerequisites;
+            }
+            
+            // If prerequisites is an object, convert to array
+            if (typeof prerequisites === 'object') {
+                return Object.keys(prerequisites);
+            }
+        }
+        
+        return [];
+    } catch (error) {
+        console.error('Error fetching prerequisites:', error);
+        return [];
+    }
+}
+
+// NEW: Get prerequisite course details
+async function getPrerequisiteDetails(prerequisiteIds) {
+    try {
+        const courseDetails = [];
+        
+        for (const courseId of prerequisiteIds) {
+            const courseRef = ref(firebaseServices.rtdb, `courses/${courseId}`);
+            const snapshot = await get(courseRef);
+            
+            if (snapshot.exists()) {
+                const courseData = snapshot.val();
+                courseDetails.push({
+                    id: courseId,
+                    title: courseData.title || 'Unknown Course',
+                    completed: userCompletedCourses.has(courseId)
+                });
+            } else {
+                courseDetails.push({
+                    id: courseId,
+                    title: 'Course Not Found',
+                    completed: false
+                });
+            }
+        }
+        
+        return courseDetails;
+    } catch (error) {
+        console.error('Error fetching prerequisite details:', error);
+        return prerequisiteIds.map(id => ({
+            id: id,
+            title: 'Loading...',
+            completed: false
+        }));
+    }
+}
+
+// NEW: Render prerequisites section
+function renderPrerequisitesSection(prerequisites, isUserLoggedIn) {
+    if (!prerequisites || prerequisites.length === 0) {
+        return `
+            <div class="prerequisites-section">
+                <div class="prerequisites-title">
+                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Prerequisites
+                </div>
+                <div class="no-prerequisites">No prerequisites required</div>
+            </div>
+        `;
+    }
+    
+    let prerequisitesHTML = `
+        <div class="prerequisites-section">
+            <div class="prerequisites-title">
+                <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Required Courses
+            </div>
+            <div class="prerequisites-list">
+    `;
+    
+    prerequisites.forEach(prereq => {
+        const statusClass = isUserLoggedIn ? (prereq.completed ? 'completed' : 'missing') : '';
+        const statusIcon = prereq.completed ? '✓' : '⏱️';
+        
+        prerequisitesHTML += `
+            <span class="prerequisite-item ${statusClass}" title="${prereq.title}">
+                ${isUserLoggedIn ? statusIcon + ' ' : ''}${prereq.title}
+            </span>
+        `;
+    });
+    
+    prerequisitesHTML += `
+            </div>
+        </div>
+    `;
+    
+    return prerequisitesHTML;
 }
 
 // Add helper function for date normalization (similar to the one in firebase.js)
@@ -632,10 +771,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Store all courses for filtering
             allCourses = courses;
 
-            // Check if user is logged in to load their bookmarks
+            // Check if user is logged in to load their bookmarks and completed courses
             const user = firebaseServices.auth.currentUser;
             if (user) {
-                await loadUserBookmarks(user.uid);
+                await Promise.all([
+                    loadUserBookmarks(user.uid),
+                    loadUserCompletedCourses(user.uid)
+                ]);
             }
 
             // Check if user is logged in to show personalized recommendations
@@ -1077,8 +1219,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Difficulty filters rendered');
     }
 
-    // Render courses
-    function renderCourses(courses) {
+    // NEW: Main function to render courses with prerequisites
+    async function renderCourses(courses) {
         if (!coursesContainer) return;
 
         if (courses.length === 0) {
@@ -1143,30 +1285,163 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Generate HTML for courses
-        let coursesHTML = '';
-        console.log('Processing courses for display:', courses);
-        courses.forEach(course => {
-            console.log('Processing course:', course);
+        // Show loading state for prerequisites
+        coursesContainer.innerHTML = `
+            <div class="col-span-full text-center py-10">
+                <div class="loading-spinner mx-auto"></div>
+                <p class="mt-4 text-gray-700 font-semibold">Loading course prerequisites...</p>
+            </div>
+        `;
+
+        try {
+            const user = firebaseServices.auth.currentUser;
+            const isUserLoggedIn = !!user;
             
-            // Map category ID to name if it's an ID, otherwise use as is
+            // Create an array to store all course data with prerequisites
+            const coursesWithPrerequisites = [];
+            
+            for (const course of courses) {
+                // Get prerequisites for each course
+                const prerequisiteIds = await getCoursePrerequisites(course.id);
+                const prerequisiteDetails = await getPrerequisiteDetails(prerequisiteIds);
+                
+                coursesWithPrerequisites.push({
+                    ...course,
+                    prerequisiteDetails: prerequisiteDetails
+                });
+            }
+
+            // Generate HTML for courses
+            let coursesHTML = '';
+            
+            coursesWithPrerequisites.forEach(course => {
+                // Map category ID to name if it's an ID, otherwise use as is
+                let categoryName = course.category || 'General';
+                if (categoryMap && categoryMap[course.category]) {
+                    categoryName = categoryMap[course.category];
+                }
+                
+                // Get duration category
+                const durationCategory = getDurationCategory(course.duration);
+                let durationText = course.duration || 'N/A';
+                if (durationCategory === 'short') durationText += ' (Short)';
+                else if (durationCategory === 'medium') durationText += ' (Medium)';
+                else if (durationCategory === 'long') durationText += ' (Long)';
+                
+                const isBookmarked = bookmarkedCourses.has(course.id);
+                
+                // Generate prerequisites section
+                const prerequisitesSection = renderPrerequisitesSection(
+                    course.prerequisiteDetails,
+                    isUserLoggedIn
+                );
+                
+                coursesHTML += `
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden hover-lift transition-all duration-300 course-card relative">
+                        <!-- Bookmark Button -->
+                        <button class="bookmark-btn ${isBookmarked ? 'bookmarked' : 'not-bookmarked'} absolute top-4 right-4 z-10" 
+                                data-course-id="${course.id}"
+                                title="${isBookmarked ? 'Remove from bookmarks' : 'Save for later'}">
+                            <svg class="h-6 w-6 bookmark-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                        </button>
+                        
+                        <div class="h-48 overflow-hidden">
+                            <img class="w-full h-full object-cover lazy-load" data-src="${course.thumbnail || 'https://images.unsplash.com/photo-1547658719-da2b51169166?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=600&q=80'}" alt="${course.title}" loading="lazy">
+                        </div>
+                        <div class="p-6">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="text-xl font-bold text-gray-900">${course.title}</h3>
+                                    <p class="mt-1 text-sm text-gray-500">${categoryName} • ${course.difficulty || 'Beginner'}</p>
+                                </div>
+                                <div class="flex items-center text-amber-500">
+                                    <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                    </svg>
+                                    <span class="ml-1 text-gray-600">${course.rating || '4.5'}</span>
+                                </div>
+                            </div>
+                            
+                            <p class="mt-3 text-gray-600 line-clamp-2">${course.description || 'No description available'}</p>
+                            
+                            <!-- PREREQUISITES SECTION - NEW FEATURE -->
+                            ${prerequisitesSection}
+                            
+                            <div class="mt-4 flex flex-wrap gap-2">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                                    ${course.lessons ? course.lessons.length : 0} lessons
+                                </span>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    ${durationText}
+                                </span>
+                                ${course.instructor ? `
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                    ${course.instructor}
+                                </span>
+                                ` : ''}
+                            </div>
+                            
+                            <div class="mt-6 flex space-x-3">
+                                <a href="player.html?courseId=${course.id}" class="flex-1 px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition duration-300 text-center">
+                                    View Course
+                                </a>
+                                <button class="bookmark-btn-text ${isBookmarked ? 'bookmarked' : 'not-bookmarked'} px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition duration-300 flex items-center justify-center"
+                                        data-course-id="${course.id}">
+                                    <svg class="h-5 w-5 mr-2 bookmark-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                                    </svg>
+                                    <span class="bookmark-text">${isBookmarked ? 'Saved' : 'Save'}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            console.log('Generated courses HTML:', coursesHTML);
+            coursesContainer.innerHTML = coursesHTML;
+            console.log('Courses container updated with', courses.length, 'courses');
+            
+            // Add event listeners to bookmark buttons
+            document.querySelectorAll('.bookmark-btn, .bookmark-btn-text').forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const courseId = this.getAttribute('data-course-id');
+                    toggleBookmark(courseId);
+                });
+            });
+            
+            // Observe images for lazy loading
+            document.querySelectorAll('.lazy-load').forEach(img => {
+                imageObserver.observe(img);
+            });
+            
+        } catch (error) {
+            console.error('Error rendering courses with prerequisites:', error);
+            utils.showNotification('Error loading course prerequisites', 'error');
+            
+            // Fallback to basic rendering without prerequisites
+            renderBasicCourses(courses);
+        }
+    }
+
+    // Fallback function to render courses without prerequisites
+    function renderBasicCourses(courses) {
+        if (!coursesContainer) return;
+
+        let coursesHTML = '';
+        courses.forEach(course => {
             let categoryName = course.category || 'General';
             if (categoryMap && categoryMap[course.category]) {
                 categoryName = categoryMap[course.category];
             }
             
-            // Get duration category
-            const durationCategory = getDurationCategory(course.duration);
-            let durationText = course.duration || 'N/A';
-            if (durationCategory === 'short') durationText += ' (Short)';
-            else if (durationCategory === 'medium') durationText += ' (Medium)';
-            else if (durationCategory === 'long') durationText += ' (Long)';
-            
             const isBookmarked = bookmarkedCourses.has(course.id);
             
             coursesHTML += `
                 <div class="bg-white rounded-xl shadow-md overflow-hidden hover-lift transition-all duration-300 course-card relative">
-                    <!-- Bookmark Button -->
                     <button class="bookmark-btn ${isBookmarked ? 'bookmarked' : 'not-bookmarked'} absolute top-4 right-4 z-10" 
                             data-course-id="${course.id}"
                             title="${isBookmarked ? 'Remove from bookmarks' : 'Save for later'}">
@@ -1199,7 +1474,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 ${course.lessons ? course.lessons.length : 0} lessons
                             </span>
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                ${durationText}
+                                ${course.duration || 'N/A'}
                             </span>
                             ${course.instructor ? `
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
@@ -1225,11 +1500,9 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
         });
 
-        console.log('Generated courses HTML:', coursesHTML);
         coursesContainer.innerHTML = coursesHTML;
-        console.log('Courses container updated with', courses.length, 'courses');
         
-        // Add event listeners to bookmark buttons
+        // Add event listeners
         document.querySelectorAll('.bookmark-btn, .bookmark-btn-text').forEach(button => {
             button.addEventListener('click', function(e) {
                 e.stopPropagation();

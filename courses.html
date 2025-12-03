@@ -50,6 +50,61 @@
             border-color: #c7d2fe;
         }
         
+        /* Prerequisites styling */
+        .prerequisites-section {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #f3f4f6;
+        }
+        
+        .prerequisites-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .prerequisites-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.375rem;
+        }
+        
+        .prerequisite-item {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            background-color: #f3f4f6;
+            color: #4b5563;
+            border: 1px solid #e5e7eb;
+            transition: all 0.2s ease;
+        }
+        
+        .prerequisite-item.completed {
+            background-color: #d1fae5;
+            color: #065f46;
+            border-color: #a7f3d0;
+        }
+        
+        .prerequisite-item.missing {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+        
+        .prerequisite-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .no-prerequisites {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            font-style: italic;
+        }
+        
         /* Category filter buttons with improved design */
         .category-btn {
             transition: all 0.2s ease;
@@ -280,14 +335,12 @@
             <div class="flex justify-between items-center py-4">
                 <!-- Logo and site name -->
                 <div class="flex items-center">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0 flex items-center h-10 w-10">
-                            <img src="./logo.png" alt="BYAMN Logo" class="h-full w-full object-contain">
-                        </div>
-                        <h1 class="ml-3 font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent text-2xl">
-                            BYAMN
-                        </h1>
+                    <div class="flex-shrink-0 flex items-center h-10 w-10">
+                        <img src="./logo.png" alt="BYAMN Logo" class="h-full w-full object-contain">
                     </div>
+                    <h1 class="ml-3 font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent text-2xl">
+                        BYAMN
+                    </h1>
                 </div>
                 
                 <!-- Desktop Navigation - hidden on mobile -->
