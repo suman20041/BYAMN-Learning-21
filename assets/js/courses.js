@@ -167,7 +167,7 @@ async function loadUserCompletedCourses(userId) {
     }
 }
 
-// NEW: Get prerequisites for a course
+// Get prerequisites for a course
 async function getCoursePrerequisites(courseId) {
     try {
         const courseRef = ref(firebaseServices.rtdb, `courses/${courseId}/prerequisites`);
@@ -194,7 +194,7 @@ async function getCoursePrerequisites(courseId) {
     }
 }
 
-// NEW: Get prerequisite course details
+// Get prerequisite course details
 async function getPrerequisiteDetails(prerequisiteIds) {
     try {
         const courseDetails = [];
@@ -230,7 +230,7 @@ async function getPrerequisiteDetails(prerequisiteIds) {
     }
 }
 
-// NEW: Render prerequisites section
+// Render prerequisites section
 function renderPrerequisitesSection(prerequisites, isUserLoggedIn) {
     if (!prerequisites || prerequisites.length === 0) {
         return `
@@ -274,6 +274,141 @@ function renderPrerequisitesSection(prerequisites, isUserLoggedIn) {
     `;
     
     return prerequisitesHTML;
+}
+
+// Create review section for course card
+function createReviewSection(course) {
+    const avgRating = window.reviewSystem ? window.reviewSystem.getAverageRating(course.id) : 0;
+    const reviewCount = window.reviewSystem ? window.reviewSystem.getCourseReviews(course.id).length : 0;
+    
+    return `
+        <!-- Reviews Section -->
+        <div class="mt-4 pt-4 border-t border-gray-100">
+            <!-- Rating Display -->
+            <div class="flex items-center justify-between mb-3">
+                <div id="course-rating-${course.id}" class="flex items-center">
+                    ${window.reviewSystem ? window.reviewSystem.generateStarRating(Math.round(avgRating), 'w-4 h-4') : ''}
+                    <span class="ml-1 text-sm font-medium text-gray-600">${avgRating.toFixed(1)}</span>
+                    <span class="ml-1 text-sm text-gray-400">(${reviewCount})</span>
+                </div>
+                <button 
+                    onclick="toggleReviewModal('${course.id}')" 
+                    class="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                >
+                    Write a Review
+                </button>
+            </div>
+            
+            <!-- Recent Reviews Preview -->
+            <div id="reviews-container-${course.id}" class="space-y-3">
+                <!-- Reviews will be loaded here -->
+            </div>
+        </div>
+    `;
+}
+
+// Toggle review modal
+function toggleReviewModal(courseId) {
+    const user = firebaseServices.auth.currentUser;
+    if (!user) {
+        utils.showNotification('Please sign in to write a review', 'error');
+        return;
+    }
+    
+    // Check if user is enrolled in the course
+    firebaseServices.getUserEnrollments(user.uid)
+        .then(enrollments => {
+            const isEnrolled = enrollments.some(enrollment => enrollment.courseId === courseId);
+            if (!isEnrolled) {
+                utils.showNotification('You need to enroll in this course before writing a review', 'error');
+                return;
+            }
+            
+            // Show review modal
+            if (window.reviewSystem) {
+                window.reviewSystem.showReviewModal(courseId);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking enrollment:', error);
+            utils.showNotification('Error checking enrollment status', 'error');
+        });
+}
+
+// Load reviews for a course
+async function loadCourseReviews(courseId) {
+    if (!window.reviewSystem) return;
+    
+    try {
+        const reviews = window.reviewSystem.getCourseReviews(courseId);
+        const recentReviews = reviews.slice(0, 2); // Show only 2 recent reviews
+        
+        const container = document.getElementById(`reviews-container-${courseId}`);
+        if (!container) return;
+        
+        if (recentReviews.length === 0) {
+            container.innerHTML = `
+                <p class="text-sm text-gray-500 italic">No reviews yet. Be the first to review this course!</p>
+            `;
+            return;
+        }
+        
+        let reviewsHTML = '';
+        recentReviews.forEach(review => {
+            const user = review.user || 'Anonymous';
+            const date = review.timestamp ? new Date(review.timestamp).toLocaleDateString() : 'Recently';
+            
+            reviewsHTML += `
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center mr-2">
+                                <span class="text-xs font-medium text-indigo-600">${user.charAt(0)}</span>
+                            </div>
+                            <span class="text-sm font-medium text-gray-700">${user}</span>
+                        </div>
+                        <span class="text-xs text-gray-500">${date}</span>
+                    </div>
+                    <div class="flex items-center mb-1">
+                        ${window.reviewSystem.generateStarRating(review.rating, 'w-3 h-3')}
+                    </div>
+                    <p class="text-sm text-gray-600 line-clamp-2">${review.comment || 'No comment provided.'}</p>
+                </div>
+            `;
+        });
+        
+        if (reviews.length > 2) {
+            reviewsHTML += `
+                <button 
+                    onclick="showAllReviews('${courseId}')" 
+                    class="text-sm text-indigo-600 hover:text-indigo-800 font-medium w-full text-center"
+                >
+                    View all ${reviews.length} reviews
+                </button>
+            `;
+        }
+        
+        container.innerHTML = reviewsHTML;
+        
+        // Update average rating display
+        const avgRating = window.reviewSystem.getAverageRating(courseId);
+        const ratingContainer = document.getElementById(`course-rating-${courseId}`);
+        if (ratingContainer) {
+            const ratingSpan = ratingContainer.querySelector('span:nth-child(2)');
+            if (ratingSpan) {
+                ratingSpan.textContent = avgRating.toFixed(1);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading reviews:', error);
+    }
+}
+
+// Show all reviews for a course
+function showAllReviews(courseId) {
+    if (window.reviewSystem) {
+        window.reviewSystem.showAllReviews(courseId);
+    }
 }
 
 // Add helper function for date normalization (similar to the one in firebase.js)
@@ -435,6 +570,13 @@ function sortCourses(courses, sortOption) {
             break;
         case 'enrollmentDesc':
             sortedCourses.sort((a, b) => (b.enrollmentCount || 0) - (a.enrollmentCount || 0));
+            break;
+        case 'ratingDesc':
+            sortedCourses.sort((a, b) => {
+                const ratingA = window.reviewSystem ? window.reviewSystem.getAverageRating(a.id) : 0;
+                const ratingB = window.reviewSystem ? window.reviewSystem.getAverageRating(b.id) : 0;
+                return ratingB - ratingA;
+            });
             break;
         default:
             // Default to newest
@@ -924,8 +1066,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Boost score for courses with good ratings
-            if (course.rating && course.rating >= 4.0) {
-                score += course.rating * 3;
+            const avgRating = window.reviewSystem ? window.reviewSystem.getAverageRating(courseId) : 0;
+            if (avgRating >= 4.0) {
+                score += avgRating * 3;
             }
             
             // Boost score for popular courses
@@ -1042,6 +1185,10 @@ document.addEventListener('DOMContentLoaded', function() {
             if (course.lessons && Array.isArray(course.lessons)) {
                 totalDuration = course.lessons.reduce((sum, lesson) => sum + (lesson.duration || 0), 0);
             }
+            
+            // Get average rating
+            const avgRating = window.reviewSystem ? window.reviewSystem.getAverageRating(course.id) : 0;
+            const reviewCount = window.reviewSystem ? window.reviewSystem.getCourseReviews(course.id).length : 0;
 
             recommendationsHTML += `
                 <div class="course-card recommendation-card" data-course-id="${course.id}">
@@ -1073,6 +1220,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         <p class="course-card-description">
                             ${course.description || 'No description available for this course.'}
                         </p>
+                        
+                        <!-- Reviews Section for Recommendations -->
+                        <div class="mt-3 pt-3 border-t border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    ${window.reviewSystem ? window.reviewSystem.generateStarRating(Math.round(avgRating), 'w-3 h-3') : ''}
+                                    <span class="ml-1 text-xs font-medium text-gray-600">${avgRating.toFixed(1)}</span>
+                                    <span class="ml-1 text-xs text-gray-400">(${reviewCount})</span>
+                                </div>
+                            </div>
+                        </div>
+                        
                         <div class="course-card-meta">
                             <div class="flex items-center text-gray-600 text-sm">
                                 <svg class="h-5 w-5 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1219,7 +1378,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Difficulty filters rendered');
     }
 
-    // NEW: Main function to render courses with prerequisites
+    // Main function to render courses with prerequisites and reviews
     async function renderCourses(courses) {
         if (!coursesContainer) return;
 
@@ -1289,7 +1448,7 @@ document.addEventListener('DOMContentLoaded', function() {
         coursesContainer.innerHTML = `
             <div class="col-span-full text-center py-10">
                 <div class="loading-spinner mx-auto"></div>
-                <p class="mt-4 text-gray-700 font-semibold">Loading course prerequisites...</p>
+                <p class="mt-4 text-gray-700 font-semibold">Loading course data...</p>
             </div>
         `;
 
@@ -1314,7 +1473,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Generate HTML for courses
             let coursesHTML = '';
             
-            coursesWithPrerequisites.forEach(course => {
+            for (const course of coursesWithPrerequisites) {
                 // Map category ID to name if it's an ID, otherwise use as is
                 let categoryName = course.category || 'General';
                 if (categoryMap && categoryMap[course.category]) {
@@ -1336,6 +1495,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     isUserLoggedIn
                 );
                 
+                // Generate reviews section
+                const reviewsSection = createReviewSection(course);
+
                 coursesHTML += `
                     <div class="bg-white rounded-xl shadow-md overflow-hidden hover-lift transition-all duration-300 course-card relative">
                         <!-- Bookmark Button -->
@@ -1360,14 +1522,17 @@ document.addEventListener('DOMContentLoaded', function() {
                                     <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                     </svg>
-                                    <span class="ml-1 text-gray-600">${course.rating || '4.5'}</span>
+                                    <span class="ml-1 text-gray-600">${window.reviewSystem ? window.reviewSystem.getAverageRating(course.id).toFixed(1) : '0.0'}</span>
                                 </div>
                             </div>
                             
                             <p class="mt-3 text-gray-600 line-clamp-2">${course.description || 'No description available'}</p>
                             
-                            <!-- PREREQUISITES SECTION - NEW FEATURE -->
+                            <!-- PREREQUISITES SECTION -->
                             ${prerequisitesSection}
+                            
+                            <!-- REVIEWS SECTION -->
+                            ${reviewsSection}
                             
                             <div class="mt-4 flex flex-wrap gap-2">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
@@ -1379,6 +1544,11 @@ document.addEventListener('DOMContentLoaded', function() {
                                 ${course.instructor ? `
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                                     ${course.instructor}
+                                </span>
+                                ` : ''}
+                                ${course.enrollmentCount ? `
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    ${course.enrollmentCount} enrolled
                                 </span>
                                 ` : ''}
                             </div>
@@ -1398,7 +1568,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     </div>
                 `;
-            });
+            }
 
             console.log('Generated courses HTML:', coursesHTML);
             coursesContainer.innerHTML = coursesHTML;
@@ -1418,9 +1588,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 imageObserver.observe(img);
             });
             
+            // Load reviews for each course
+            courses.forEach(course => {
+                loadCourseReviews(course.id);
+            });
+            
         } catch (error) {
             console.error('Error rendering courses with prerequisites:', error);
-            utils.showNotification('Error loading course prerequisites', 'error');
+            utils.showNotification('Error loading course data', 'error');
             
             // Fallback to basic rendering without prerequisites
             renderBasicCourses(courses);
@@ -1439,6 +1614,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             const isBookmarked = bookmarkedCourses.has(course.id);
+            
+            // Generate reviews section
+            const reviewsSection = createReviewSection(course);
             
             coursesHTML += `
                 <div class="bg-white rounded-xl shadow-md overflow-hidden hover-lift transition-all duration-300 course-card relative">
@@ -1463,11 +1641,14 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                 </svg>
-                                <span class="ml-1 text-gray-600">${course.rating || '4.5'}</span>
+                                <span class="ml-1 text-gray-600">${window.reviewSystem ? window.reviewSystem.getAverageRating(course.id).toFixed(1) : '0.0'}</span>
                             </div>
                         </div>
                         
                         <p class="mt-3 text-gray-600 line-clamp-2">${course.description || 'No description available'}</p>
+                        
+                        <!-- REVIEWS SECTION -->
+                        ${reviewsSection}
                         
                         <div class="mt-4 flex flex-wrap gap-2">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
@@ -1479,6 +1660,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             ${course.instructor ? `
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                                 ${course.instructor}
+                            </span>
+                            ` : ''}
+                            ${course.enrollmentCount ? `
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                ${course.enrollmentCount} enrolled
                             </span>
                             ` : ''}
                         </div>
@@ -1514,6 +1700,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Observe images for lazy loading
         document.querySelectorAll('.lazy-load').forEach(img => {
             imageObserver.observe(img);
+        });
+        
+        // Load reviews for each course
+        courses.forEach(course => {
+            loadCourseReviews(course.id);
         });
     }
 });
