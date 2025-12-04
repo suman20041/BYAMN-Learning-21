@@ -17,114 +17,6 @@ let userCompletedCourses = new Set(); // Store user's completed course IDs
 let userCollections = []; // Store user collections
 let activeCollectionId = null; // Track active collection
 
-// Function to load sample data for debugging purposes
-function loadSampleData() {
-    console.log('Loading sample data...');
-    
-    // Sample categories
-    const sampleCategories = [
-        { id: 'web-development', name: 'Web Development' },
-        { id: 'data-science', name: 'Data Science' },
-        { id: 'mobile-apps', name: 'Mobile Apps' },
-        { id: 'design', name: 'Design' }
-    ];
-    
-    // Sample courses
-    const sampleCourses = [
-        {
-            id: 'course-1',
-            title: 'JavaScript Fundamentals',
-            description: 'Learn the basics of JavaScript programming language.',
-            category: 'web-development',
-            difficulty: 'Beginner',
-            duration: '4 hours',
-            rating: 4.5,
-            enrollmentCount: 1250,
-            instructor: 'John Doe',
-            thumbnail: 'https://placehold.co/400x200/6366f1/white?text=JavaScript',
-            lessons: [
-                { id: 'lesson-1', title: 'Introduction to JavaScript', duration: 30 },
-                { id: 'lesson-2', title: 'Variables and Data Types', duration: 45 },
-                { id: 'lesson-3', title: 'Functions and Scope', duration: 60 }
-            ],
-            createdAt: new Date().toISOString()
-        },
-        {
-            id: 'course-2',
-            title: 'React for Beginners',
-            description: 'Build modern web applications with React.',
-            category: 'web-development',
-            difficulty: 'Intermediate',
-            duration: '8 hours',
-            rating: 4.8,
-            enrollmentCount: 2100,
-            instructor: 'Jane Smith',
-            thumbnail: 'https://placehold.co/400x200/6366f1/white?text=React',
-            lessons: [
-                { id: 'lesson-1', title: 'React Components', duration: 45 },
-                { id: 'lesson-2', title: 'State and Props', duration: 60 },
-                { id: 'lesson-3', title: 'Hooks and Effects', duration: 75 }
-            ],
-            createdAt: new Date(Date.now() - 86400000).toISOString() // Yesterday
-        },
-        {
-            id: 'course-3',
-            title: 'Python Data Analysis',
-            description: 'Analyze data with Python and Pandas library.',
-            category: 'data-science',
-            difficulty: 'Intermediate',
-            duration: '12 hours',
-            rating: 4.7,
-            enrollmentCount: 1800,
-            instructor: 'Mike Johnson',
-            thumbnail: 'https://placehold.co/400x200/6366f1/white?text=Python',
-            lessons: [
-                { id: 'lesson-1', title: 'Introduction to Pandas', duration: 60 },
-                { id: 'lesson-2', title: 'Data Cleaning', duration: 90 },
-                { id: 'lesson-3', title: 'Data Visualization', duration: 75 }
-            ],
-            createdAt: new Date(Date.now() - 172800000).toISOString() // 2 days ago
-        }
-    ];
-    
-    // Set up category mapping
-    categoryMap = {};
-    sampleCategories.forEach(category => {
-        categoryMap[category.id] = category.name;
-    });
-    
-    // Store all courses
-    allCourses = sampleCourses;
-    
-    // Update UI
-    const coursesContainer = document.getElementById('courses-container');
-    const categoryFilterContainer = document.getElementById('category-filters');
-    const resultsCount = document.getElementById('results-count');
-    
-    if (coursesContainer) {
-        // Render courses
-        renderCourses(sampleCourses);
-    }
-    
-    if (categoryFilterContainer) {
-        // Render category filters
-        renderCategoryFilters(sampleCategories);
-    }
-    
-    if (resultsCount) {
-        resultsCount.textContent = `${sampleCourses.length} course${sampleCourses.length !== 1 ? 's' : ''} found`;
-    }
-    
-    // Set the "All Courses" button as active
-    const allCoursesButton = document.querySelector('.filter-btn[data-category="all"]');
-    if (allCoursesButton) {
-        allCoursesButton.classList.add('active');
-    }
-    
-    console.log('Sample data loaded successfully');
-    utils.showNotification('Sample data loaded successfully', 'success');
-}
-
 // Intersection Observer for lazy loading images
 const imageObserver = new IntersectionObserver((entries, observer) => {
     entries.forEach(entry => {
@@ -1942,7 +1834,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         coursesContainer.innerHTML = coursesHTML;
         
-        // Add event listeners
+        // Add event listeners to bookmark buttons
         document.querySelectorAll('.bookmark-btn, .bookmark-btn-text').forEach(button => {
             button.addEventListener('click', function(e) {
                 e.stopPropagation();
