@@ -339,6 +339,42 @@
             color: #fbbf24;
         }
         
+        /* Calendar button styles */
+        .calendar-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: 1px solid #e5e7eb;
+            background-color: white;
+            color: #4b5563;
+        }
+        
+        .calendar-btn:hover {
+            background-color: #f9fafb;
+            border-color: #d1d5db;
+            transform: translateY(-1px);
+        }
+        
+        .calendar-btn-sm {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+        }
+        
+        .calendar-btn-outline {
+            background-color: transparent;
+            border: 1px solid #4f46e5;
+            color: #4f46e5;
+        }
+        
+        .calendar-btn-outline:hover {
+            background-color: #4f46e5;
+            color: white;
+        }
+        
         /* Responsive adjustments */
         @media (max-width: 768px) {
             .course-card-title {
@@ -354,13 +390,10 @@
                 font-size: 0.875rem;
             }
             
-            /* Responsive adjustments for filter controls */
-            @media (max-width: 768px) {
-                #sort-options {
-                    min-width: 150px;
-                    padding: 0.6rem 0.8rem;
-                    font-size: 0.9rem;
-                }
+            #sort-options {
+                min-width: 150px;
+                padding: 0.6rem 0.8rem;
+                font-size: 0.9rem;
             }
         }
     </style>
@@ -788,6 +821,8 @@
     <script src="assets/js/courses.js"></script>
     <script src="assets/js/offline-sync.js"></script>
     <script src="assets/js/reviews.js"></script>
+    <!-- Calendar Integration JavaScript -->
+    <script src="assets/js/calendar-integration.js"></script>
     
     <!-- Review System Script -->
     <script>
@@ -1094,6 +1129,74 @@
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
                     closeReviewModal();
+                }
+            });
+            
+            // Calendar integration for courses page
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.add-to-calendar')) {
+                    e.preventDefault();
+                    const btn = e.target.closest('.add-to-calendar');
+                    const courseId = btn.getAttribute('data-course-id');
+                    const courseTitle = btn.getAttribute('data-course-title');
+                    
+                    // Find course data
+                    const courseCard = btn.closest('.course-card');
+                    const courseDescription = courseCard.querySelector('.course-card-description')?.textContent || '';
+                    
+                    const course = {
+                        id: courseId,
+                        title: courseTitle,
+                        description: courseDescription
+                    };
+                    
+                    // Check if calendarIntegration exists
+                    if (window.calendarIntegration && typeof window.calendarIntegration.generateCalendarEvent === 'function') {
+                        const event = window.calendarIntegration.generateCalendarEvent(course);
+                        window.calendarIntegration.showCalendarPicker(event, course);
+                    } else {
+                        // Fallback to simple calendar integration
+                        const startDate = new Date();
+                        startDate.setDate(startDate.getDate() + 1);
+                        startDate.setHours(10, 0, 0, 0);
+                        
+                        const endDate = new Date(startDate);
+                        endDate.setHours(11, 0, 0, 0);
+                        
+                        const event = {
+                            title: `Study: ${course.title}`,
+                            description: course.description.substring(0, 100) + '...',
+                            start: startDate,
+                            end: endDate,
+                            location: 'BYAMN Learning Platform',
+                            url: window.location.href
+                        };
+                        
+                        // Create .ics file download
+                        const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+SUMMARY:${event.title}
+DESCRIPTION:${event.description}
+DTSTART:${startDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+LOCATION:${event.location}
+URL:${event.url}
+END:VEVENT
+END:VCALENDAR`;
+                        
+                        const blob = new Blob([icsContent], { type: 'text/calendar' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${course.title.replace(/\s+/g, '_')}_study_time.ics`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        
+                        alert('Calendar event downloaded. Import it into your calendar app!');
+                    }
                 }
             });
         });

@@ -12,11 +12,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const lessonDescription = document.getElementById('lesson-description');
     const certificateBtn = document.getElementById('certificate-btn');
     const markCompleteBtn = document.getElementById('mark-complete-btn');
-    const markAllCompleteBtn = document.getElementById('mark-all-complete-btn'); // Added
+    const markAllCompleteBtn = document.getElementById('mark-all-complete-btn');
     const nextLessonBtn = document.getElementById('next-lesson-btn');
-    // Updated element references for new UI
-    const progressPercent = document.getElementById('progress-percent-top'); // Changed from progress-percent
-    const progressPercentTop = document.getElementById('progress-percent-top'); // This is the same now
+    const progressPercent = document.getElementById('progress-percent');
+    const progressPercentTop = document.getElementById('progress-percent-top');
     const progressPercentTopMain = document.getElementById('progress-percent-top-main');
     const lessonDuration = document.getElementById('lesson-duration');
     const progressBar = document.getElementById('progress-bar');
@@ -35,6 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentCourse = null;
     let currentEnrollment = null;
     let currentLessonIndex = 0;
+    let currentLesson = null;
     let player = null; // YouTube player instance
     let watchStartTime = null;
     let watchedTime = 0;
@@ -297,28 +297,30 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             // Initialize streak manager if not already done
-            const streakManager = window.initializeStreakManager();
+            const streakManager = window.initializeStreakManager ? window.initializeStreakManager() : null;
             
-            // Wait for initialization if needed
-            if (!streakManager.isInitialized) {
-                await new Promise(resolve => {
-                    const checkInit = setInterval(() => {
-                        if (streakManager.isInitialized) {
+            if (streakManager) {
+                // Wait for initialization if needed
+                if (!streakManager.isInitialized) {
+                    await new Promise(resolve => {
+                        const checkInit = setInterval(() => {
+                            if (streakManager.isInitialized) {
+                                clearInterval(checkInit);
+                                resolve();
+                            }
+                        }, 100);
+                        
+                        // Timeout after 3 seconds
+                        setTimeout(() => {
                             clearInterval(checkInit);
                             resolve();
-                        }
-                    }, 100);
-                    
-                    // Timeout after 3 seconds
-                    setTimeout(() => {
-                        clearInterval(checkInit);
-                        resolve();
-                    }, 3000);
-                });
+                        }, 3000);
+                    });
+                }
+                
+                // Record learning activity for streak tracking
+                await streakManager.recordLearningActivity(duration);
             }
-            
-            // Record learning activity for streak tracking
-            await streakManager.recordLearningActivity(duration);
             
             // Track challenge progress when lesson is completed
             if (typeof learningChallenges !== 'undefined') {
@@ -338,7 +340,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 lessonId,
                 courseId,
                 duration,
-                streak: streakManager.currentStreak
+                streak: streakManager ? streakManager.currentStreak : 0
             });
 
         } catch (error) {
@@ -478,6 +480,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 1000);
             }
         }
+        
+        // Initialize calendar integration
+        initializeCalendarIntegration();
     }
     
     // Render lessons list
@@ -494,7 +499,9 @@ document.addEventListener('DOMContentLoaded', function() {
         updateProgress();
         
         // Update lessons count
-        lessonsCount.textContent = `${currentCourse.lessons.length} ${currentCourse.lessons.length === 1 ? 'lesson' : 'lessons'}`;
+        if (lessonsCount) {
+            lessonsCount.textContent = `${currentCourse.lessons.length} ${currentCourse.lessons.length === 1 ? 'lesson' : 'lessons'}`;
+        }
         
         // Add each lesson to the list
         currentCourse.lessons.forEach((lesson, index) => {
@@ -561,6 +568,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Get the lesson
         const lesson = currentCourse.lessons[index];
+        currentLesson = lesson; // Store current lesson globally
         console.log('Loading lesson:', lesson);
         
         // Reset watch time tracking
@@ -616,22 +624,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Update UI
-        lessonTitle.textContent = lesson.title || 'Untitled Lesson';
+        if (lessonTitle) lessonTitle.textContent = lesson.title || 'Untitled Lesson';
         
         // Set lesson description with HTML support
-        if (lesson.description) {
-            lessonDescription.innerHTML = lesson.description;
-            // Ensure all links open in a new tab for better UX
-            const links = lessonDescription.querySelectorAll('a');
-            links.forEach(link => {
-                link.target = '_blank';
-                link.rel = 'noopener noreferrer';
-            });
-        } else {
-            lessonDescription.textContent = 'No description available for this lesson.';
+        if (lessonDescription) {
+            if (lesson.description) {
+                lessonDescription.innerHTML = lesson.description;
+                // Ensure all links open in a new tab for better UX
+                const links = lessonDescription.querySelectorAll('a');
+                links.forEach(link => {
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                });
+            } else {
+                lessonDescription.textContent = 'No description available for this lesson.';
+            }
         }
         
-        lessonDuration.textContent = `Duration: ${formatDuration(lesson.duration || 0)}`;
+        if (lessonDuration) lessonDuration.textContent = `Duration: ${formatDuration(lesson.duration || 0)}`;
         
         // Update progress percentage in the header
         if (progressPercentTopMain) {
@@ -701,6 +711,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }, 1000);
             }
         }
+        
+        // Expose course and lesson data globally for calendar integration
+        window.currentCourse = currentCourse;
+        window.currentLesson = currentLesson;
     }
     
     // Create YouTube player
@@ -955,7 +969,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const completionPercentage = Math.round((completedCount / totalLessons) * 100);
             
             // Only show "Mark All as Complete" if not all lessons are completed
-            if (completionPercentage < 100) {
+            if (completionPercentage < 100 && markAllCompleteBtn) {
                 markAllCompleteBtn.classList.remove('hidden');
             }
             
@@ -990,13 +1004,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 // Show next lesson button if not the last lesson
-                if (currentLessonIndex < currentCourse.lessons.length - 1) {
+                if (currentLessonIndex < currentCourse.lessons.length - 1 && nextLessonBtn) {
                     nextLessonBtn.classList.remove('hidden');
                     nextLessonBtn.onclick = () => loadLesson(currentLessonIndex + 1);
                 }
             } else {
                 // Lesson already completed - show next lesson button if not the last lesson
-                if (currentLessonIndex < currentCourse.lessons.length - 1) {
+                if (currentLessonIndex < currentCourse.lessons.length - 1 && nextLessonBtn) {
                     nextLessonBtn.classList.remove('hidden');
                     nextLessonBtn.onclick = () => loadLesson(currentLessonIndex + 1);
                 }
@@ -1839,13 +1853,35 @@ document.addEventListener('DOMContentLoaded', function() {
             certificateBtn.parentNode.insertBefore(printProgressBtn, certificateBtn.nextSibling);
         }
     }, 1000);
+    
+    // Expose course and lesson data globally for calendar integration
+    window.currentCourse = currentCourse;
+    window.currentLesson = currentLesson;
 });
 
-// Add modal elements to global scope
-let certificateModal = null;
-let certificateNameInput = null;
-let certificateSaveBtn = null;
-let certificateSkipBtn = null;
+/**
+ * Initialize calendar integration for course player
+ */
+function initializeCalendarIntegration() {
+    console.log('Calendar integration initialized for course player');
+    
+    // Make sure calendar integration is loaded
+    if (!window.calendarIntegration) {
+        // Load calendar integration script
+        const script = document.createElement('script');
+        script.src = 'assets/js/calendar-integration.js';
+        script.onload = function() {
+            console.log('Calendar integration script loaded');
+            if (window.calendarIntegration) {
+                window.calendarIntegration.initialize();
+            }
+        };
+        document.head.appendChild(script);
+    } else {
+        // Calendar integration already loaded
+        window.calendarIntegration.initialize();
+    }
+}
 
 // Completion Celebration Functions
 
