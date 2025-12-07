@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const progressPercent = document.getElementById('progress-percent');
     const progressPercentTop = document.getElementById('progress-percent-top');
     const progressPercentTopMain = document.getElementById('progress-percent-top-main');
-    const lessonDuration = document.getElementById('lesson-duration');
     const progressBar = document.getElementById('progress-bar');
     const lessonsList = document.getElementById('lessons-list');
     const lessonsCount = document.getElementById('lessons-count');
@@ -28,6 +27,12 @@ document.addEventListener('DOMContentLoaded', function() {
     let certificateNameInput = null;
     let certificateSaveBtn = null;
     let certificateSkipBtn = null;
+    
+    // Reflection modal elements
+    let reflectionModal = null;
+    let reflectionTextArea = null;
+    let saveReflectionBtn = null;
+    let cancelReflectionBtn = null;
     
     // State variables
     let currentUser = null;
@@ -41,7 +46,6 @@ document.addEventListener('DOMContentLoaded', function() {
     let minWatchTime = 0; // Minimum time required to watch (in seconds)
     let lessonStartTime = null; // For detailed analytics
     let totalLessonTime = 0; // Total time spent on current lesson
-    let pauseStartTime = null; // Track when user paused
     let totalPauseTime = 0; // Total time paused
     
     // Video analytics tracking
@@ -182,15 +186,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         showError('Course data is invalid or incomplete.');
                         return;
                     }
-                    
-                    // Log lesson structure for debugging
-                    console.log('Lesson structure:', currentCourse.lessons.map((lesson, index) => ({
-                        index,
-                        id: lesson.id,
-                        title: lesson.title,
-                        minWatchTime: lesson.minWatchTime,
-                        duration: lesson.duration
-                    })));
                     
                     // Find or create enrollment
                     let enrollmentData = enrollments.find(enroll => enroll.courseId === trimmedCourseId);
@@ -579,7 +574,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Reset detailed analytics tracking
         lessonStartTime = new Date(); // Start tracking when lesson loads
         totalLessonTime = 0;
-        pauseStartTime = null;
         totalPauseTime = 0;
         
         // Reset video events tracking
@@ -604,6 +598,9 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Immediately update button visibility based on loaded watched time
         updateButtonVisibility(lesson);
+        
+        // Setup reflection button
+        setupReflectionButton(courseId, lesson.id);
         
         // Validate lesson data
         if (!lesson) {
@@ -798,9 +795,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const lesson = currentCourse.lessons[currentLessonIndex];
         
         console.log('Player state changed:', event.data);
-        console.log('Player states - UNSTARTED:', YT.PlayerState.UNSTARTED, 'ENDED:', YT.PlayerState.ENDED, 
-                    'PLAYING:', YT.PlayerState.PLAYING, 'PAUSED:', YT.PlayerState.PAUSED, 
-                    'BUFFERING:', YT.PlayerState.BUFFERING, 'CUED:', YT.PlayerState.CUED);
         
         if (event.data == YT.PlayerState.PLAYING) {
             // Video started playing
@@ -827,9 +821,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 const timeDiff = (endTime - watchStartTime) / 1000; // Convert to seconds
                 watchedTime += timeDiff;
                 watchStartTime = null;
-                
-                // Track pause time
-                pauseStartTime = new Date();
                 
                 // Track pause event
                 videoEvents.pauseEvents++;
